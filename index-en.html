@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>White Phosphorus | Timeline and Plumes</title>
+  <link rel="preconnect" href="https://whitephosphorus.info" />
+  <link rel="preconnect" href="https://d30kdnzbsfnn0n.cloudfront.net" />
+  <link rel="stylesheet" href="https://whitephosphorus.info/_next/static/css/42fd78048fad3b7f.css" />
+  <link rel="icon" type="image/png" href="https://whitephosphorus.info/favicon/favicon.png" />
+  <style>
+    html { scroll-behavior: smooth; }
+    body { background: #000; color: #dedede; overflow-x: hidden; }
+    .site-shell { min-height: 100vh; background: #000; }
+    .site-header .command_button { text-decoration: none; }
+    .site-header .toxicity-counter { transition: opacity .25s ease-in-out, transform .25s ease-in-out; }
+    .site-header.header-is-plumes .toxicity-counter { opacity: 0; pointer-events: none; transform: translateY(-12px); }
+    .section-anchor { scroll-margin-top: 50px; }
+
+    .timeline-section {
+      min-height: 100vh;
+      padding-top: 50px;
+      background: #000;
+      overflow: hidden;
+    }
+
+    .timeline-section main,
+    .plumes-section main { margin-top: 0; }
+
+    .timeline-section .footage-timeline {
+      height: 66vh;
+      min-height: 420px;
+      margin-top: 0;
+      position: relative;
+    }
+
+    .heatmap-stage {
+      width: 100vw;
+      height: 100%;
+      display: flex;
+      overflow: hidden;
+      background: rgba(0, 0, 0, .8);
+    }
+
+    .heatmap-y-axis {
+      flex: 0 0 108px;
+      background: #000;
+      z-index: 5;
+      overflow: hidden;
+      box-shadow: 8px 0 12px rgba(0, 0, 0, .65);
+    }
+
+    .heatmap-scroll {
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      direction: ltr;
+      cursor: grab;
+      scrollbar-width: thin;
+      -ms-overflow-style: none;
+    }
+
+    .heatmap-scroll.is-dragging { cursor: grabbing; }
+    .heatmap-scroll::-webkit-scrollbar { height: 8px; }
+    .heatmap-scroll::-webkit-scrollbar-track { background: #050505; }
+    .heatmap-scroll::-webkit-scrollbar-thumb { background: #3a3a3a; }
+    .heatmap-scroll::-webkit-scrollbar-thumb:hover { background: #c42100; }
+    .heatmap-svg,
+    .axis-svg {
+      display: block;
+      font-family: Inconsolata, monospace;
+    }
+
+    .heatmap-svg text,
+    .axis-svg text {
+      fill: #ccc;
+      font-family: Inconsolata, monospace;
+      font-weight: 300;
+      letter-spacing: .01em;
+      pointer-events: none;
+    }
+
+    .timeline-cell {
+      stroke: #333;
+      stroke-width: .5;
+      transition: fill .15s ease, filter .12s ease;
+    }
+
+    .timeline-cell[data-active="true"] { cursor: default; }
+    .timeline-cell[data-active="true"]:hover { filter: brightness(1.5) saturate(.7); }
+
+    .heatmap-tooltip {
+      position: fixed;
+      z-index: 10000;
+      pointer-events: none;
+      opacity: 0;
+      background: rgba(255, 255, 255, .94);
+      color: #111;
+      border-radius: 2px;
+      padding: 5px 10px;
+      font-family: Inconsolata, monospace;
+      font-size: 12px;
+      line-height: 1.25;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, .1);
+      transition: opacity .12s ease;
+    }
+
+    .plumes-section {
+      position: relative;
+      min-height: 100vh;
+      padding-top: 4rem;
+      padding-bottom: 4rem;
+      background: #000;
+      border-top: 1px solid #c42100;
+      overflow: hidden;
+    }
+
+    .plumes-section .inner-backdrop {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      bottom: auto;
+      top: 0;
+      opacity: .3;
+    }
+
+    .plumes-section .language-switch {
+      position: sticky;
+      top: 5rem;
+      margin-left: 2rem;
+      width: max-content;
+      z-index: 45;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .global-language-switch {
+      position: fixed;
+      top: 5rem;
+      right: 1rem;
+      z-index: 120;
+      color: #fff;
+      cursor: pointer;
+      background: rgba(0, 0, 0, .65);
+      border: 1px solid rgba(196, 33, 0, .65);
+      padding: 4px 8px;
+      backdrop-filter: blur(2px);
+    }
+
+    body.lang-ar .heatmap-svg text,
+    body.lang-ar .axis-svg text,
+    body.lang-ar .heatmap-tooltip,
+    body.lang-ar .loading-note,
+    body.lang-ar .error-note {
+      font-family: Helvetica Arabic, Inconsolata, Arial, sans-serif;
+    }
+
+    body.lang-ar .heatmap-tooltip,
+    body.lang-ar .plumes-description {
+      direction: rtl;
+      text-align: right;
+    }
+
+    .plume-row {
+      grid-template-columns: 260px .7fr 1fr;
+      content-visibility: auto;
+      contain-intrinsic-size: 300px;
+    }
+    .plume-card video,
+    .plume-card img { background: #000; }
+    .plume-media-grid { min-height: 190px; }
+    .plume-copy { min-height: 220px; }
+
+    #media-overlay {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .3s ease-in-out, visibility .3s ease-in-out;
+    }
+
+    #media-overlay.fade-in { opacity: 1; visibility: visible; }
+    #media-overlay.fade-out { opacity: 0; visibility: hidden; }
+    #overlay-content {
+      width: fit-content;
+      height: fit-content;
+      max-width: 88vw;
+      max-height: 82vh;
+    }
+
+    #overlay-content img {
+      width: auto;
+      height: auto;
+      max-width: 88vw;
+      max-height: 82vh;
+      object-fit: contain;
+    }
+
+    #overlay-source {
+      color: #eee;
+      background: rgba(0, 0, 0, .65);
+      padding: 4px 8px;
+    }
+
+    #overlay-source a { text-decoration: underline; }
+    .loading-note,
+    .error-note {
+      width: 100vw;
+      height: 70vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-family: Inconsolata, monospace;
+    }
+
+    .error-note { color: #ef4444; }
+
+    @media (max-width: 768px) {
+      .site-header { border-bottom: 2px solid #c42100; }
+      .site-header .command_button { display: none; }
+      .site-header .command_button_unclickable {
+        width: 71vw;
+        background-size: 71vw 43px;
+        background-position: 0 100%;
+      }
+
+      .site-header .toxicity-counter { width: 90vw; min-width: 0; }
+      .timeline-section .footage-timeline { height: 72vh; }
+      .heatmap-y-axis { flex-basis: 76px; }
+      .plume-row {
+        display: flex;
+        flex-direction: column;
+        max-height: none;
+      }
+
+      .plumes-section .language-switch { margin-left: 1rem; }
+      .global-language-switch { top: 3.9rem; right: .5rem; font-size: .9rem; }
+      .plume-copy { min-height: 260px; }
+      .plume-media-grid { min-height: 260px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="site-shell">
+    <header id="siteHeader" class="site-header bg-black pt-2 pb-14 fixed top-0 left-0 right-0 z-50">
+      <div class="relative w-full h-full bg-black">
+        <div class="absolute top-12 h-20 left-0 right-0 bottom-0 bg-gradient-to-b from-red-900 to-transparent pointer-events-none"></div>
+        <div class="absolute z-50 top-[2.85rem] h-[0.4rem] w-full redbar"></div>
+        <div class="relative">
+          <div class="fixed right-0 top-5 flex items-center">
+            <a id="timelineTab" class="command_button tab2 cursor-pointer tabIsActive" href="#timeline">
+              <div id="timelineTabLabel" class="label">TIMELINE</div>
+            </a>
+            <a id="plumesTab" class="command_button tab3 cursor-pointer" href="#plumes">
+              <div id="plumesTabLabel" class="label">PLUMES</div>
+            </a>
+          </div>
+          <table class="align-middle font-semibold tracking-wide relative table2" style="color:#FFDCD988">
+            <tbody>
+              <tr class="relative">
+                <td colspan="3" class="h-full fixed left-0 command_button_unclickable">
+                  <h3 class="mt-3 w-full text-left pl-5 z-50 tracking-wider text-[1.2rem] font-light">WhitePhosphorus.info</h3>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="toxicity-counter relative pl-4 flex flex-row fadeSlideIn">
+            <div class="flex-initial basis-1/3 flex flex-col justify-center items-start text-xl">
+              <div id="counterTitle">Toxicity  Counter</div>
+              <div id="lastUpdateLabel" class="last-update">Last update: Nov/02/2025</div>
+            </div>
+            <div class="flex-initial basis-1/3 flex flex-col items-start">
+              <div><span class="opacity-0 hidden">approx</span><span class="headerData">248</span><span class="text-xl"> </span></div>
+              <div id="strikesLabel" class="text-xl">Strikes</div>
+            </div>
+            <div class="flex-initial basis-1/3 flex flex-col items-start">
+              <div id="areaCounterValue"><span class="opacity-0 hidden">approx</span><span class="headerData">372</span><span class="text-xl"> Hectares</span></div>
+              <div id="landAreaLabel" class="text-xl">Land Area</div>
+            </div>
+            <div class="flex-initial basis-1/3 flex flex-col items-start">
+              <div><span class="opacity-0 hidden">approx</span><span class="headerData">28,768</span><span class="text-xl"> </span></div>
+              <div id="feltWedgesLabel" class="text-xl">Felt Wedges</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="global-language-switch">
+      <span id="langEn" class="transition-colors text-white underline">English </span>&nbsp;/&nbsp;<span id="langAr" class="transition-colors text-gray-400 no-underline"> &#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</span>
+    </div>
+
+    <section id="timeline" class="timeline-section section-anchor">
+      <main class="flex-grow relative h-auto overflow-hidden">
+        <div class="footage-timeline">
+          <div id="heatmap" class="min-w-max overflow-x-auto overflow-y-hidden hideScrollBar">
+            <div class="loading-note">Loading data...</div>
+          </div>
+          <div id="desktopClickLabel" class="click-label transition-opacity duration-300 opacity-0">Scroll or drag horizontally to view the full timeline.</div>
+          <div id="mobileClickLabel" class="click-label transition-opacity duration-300 opacity-0">Swipe horizontally to view the full timeline.</div>
+        </div>
+      </main>
+    </section>
+
+    <section id="plumes" class="plumes-section cloud-page section-anchor">
+      <main class="flex relative w-full">
+        <div class="inner-backdrop"></div>
+        <div class="flex justify-center scrollbar-hid w-full">
+          <div class="w-full h-full min-h-screen bg-transparent text-white p-4">
+            <div id="media-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+              <div id="overlay-content" class="border-2 flex justify-center items-center"></div>
+              <div id="overlay-source"></div>
+            </div>
+            <div id="plumesList" class="flex flex-col gap-2 mt-4">
+              <div class="loading-note">Loading data...</div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <footer id="footerNotice">Copyright Notice: All content on this site is licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0.</a> Attribution: Ahmad Baydoun.</footer>
+  </div>
+
+  <div id="heatmapTooltip" class="heatmap-tooltip"></div>
+
+  <script>
+    const SITE = 'https://whitephosphorus.info';
+    const TIMELINE_DATA = `${SITE}/data/geoData.json`;
+    const PLUME_DATA = `${SITE}/data/plume.json`;
+    const CLOUD_THUMB_ROOT = `${SITE}/cloud_thumb`;
+    const MONTH_NAMES = {
+      en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      ar: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    };
+    const EVENTS = [
+      { date: '2023-10-08', label: { en: 'Hezbollah launches rockets into Israel', ar: 'حزب الله يطلق صواريخ باتجاه إسرائيل' }, offset: 0 },
+      { date: '2023-11-24', label: { en: 'Ceasefire synchronized with Gaza Truce', ar: 'وقف إطلاق نار متزامن مع هدنة غزة' }, offset: -42 },
+      { date: '2023-11-30', label: { en: '', ar: '' }, offset: 0 },
+      { date: '2024-10-01', label: { en: 'Ground Invasion of Southern Lebanon', ar: 'اجتياح بري لجنوب لبنان' }, offset: 0 },
+      { date: '2024-11-27', label: { en: 'Ceasefire Agreement Signed', ar: 'توقيع اتفاق وقف إطلاق النار' }, offset: 0 }
+    ];
+    const I18N = {
+      en: {
+        documentTitle: 'White Phosphorus | Timeline and Plumes',
+        timeline: 'TIMELINE',
+        plumes: 'PLUMES',
+        toxicity: 'Toxicity  Counter',
+        lastUpdate: 'Last update: Nov/02/2025',
+        strikes: 'Strikes',
+        landArea: 'Land Area',
+        feltWedges: 'Felt Wedges',
+        hectares: 'Hectares',
+        soccerFields: 'soccer fields',
+        loadingData: 'Loading data...',
+        loadingMedia: 'Loading media...',
+        desktopClick: 'Scroll or drag horizontally to view the full timeline.',
+        mobileClick: 'Swipe horizontally to view the full timeline.',
+        noMedia: '',
+        incident: 'Incident',
+        incidents: 'Incidents',
+        lowIntensity: 'Low-Intensity Cross-Border Strikes',
+        viewSource: 'Click here to view source.',
+        errorLoading: 'Error loading data:',
+        footer: 'Copyright Notice: All content on this site is licensed under <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0.</a> Attribution: Ahmad Baydoun.'
+      },
+      ar: {
+        documentTitle: 'الفوسفور الأبيض | الخط الزمني والسحب',
+        timeline: 'الخط الزمني',
+        plumes: 'السحب',
+        toxicity: 'عداد السمية',
+        lastUpdate: 'آخر تحديث: 02/11/2025',
+        strikes: 'الضربات',
+        landArea: 'مساحة الأرض',
+        feltWedges: 'الأوتاد اللبادية',
+        hectares: 'هكتارات',
+        soccerFields: 'ملاعب كرة قدم',
+        loadingData: 'جار تحميل البيانات...',
+        loadingMedia: 'جار تحميل الوسائط...',
+        desktopClick: 'مرر أو اسحب أفقيا لعرض كامل الخط الزمني.',
+        mobileClick: 'اسحب أفقيا لعرض كامل الخط الزمني.',
+        noMedia: '',
+        incident: 'حادثة',
+        incidents: 'حوادث',
+        lowIntensity: 'ضربات حدودية منخفضة الشدة',
+        viewSource: 'انقر هنا لعرض المصدر.',
+        errorLoading: 'خطأ في تحميل البيانات:',
+        footer: 'إشعار حقوق النشر: كل محتوى هذا الموقع مرخص بموجب <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank">CC BY-NC 4.0.</a> النسبة: أحمد بيضون.'
+      }
+    };
+    const initialLang = new URLSearchParams(window.location.search).get('lang') === 'ar' ? 'ar' : 'en';
+    let currentLanguage = initialLang;
+    let lastTimelineRaw = null;
+
+    const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const byId = id => document.getElementById(id);
+    const abs = path => path && path.startsWith('http') ? path : `${SITE}${path || ''}`;
+
+    const header = byId('siteHeader');
+    const timelineTab = byId('timelineTab');
+    const plumesTab = byId('plumesTab');
+    const heatmap = byId('heatmap');
+    const tooltip = byId('heatmapTooltip');
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function t(key) {
+      return I18N[currentLanguage][key] || I18N.en[key] || key;
+    }
+
+    function setText(id, value) {
+      const element = byId(id);
+      if (element) element.textContent = value;
+    }
+
+    function renderAreaCounter(mode = 'hectares') {
+      const areaCounter = byId('areaCounterValue');
+      if (!areaCounter) return;
+      areaCounter.dataset.mode = mode;
+      areaCounter.innerHTML = mode === 'fields'
+        ? `<span class="opacity-0 hidden">approx</span><span class="headerData">531</span><span class="text-xl"> ${t('soccerFields')}</span>`
+        : `<span class="opacity-0 hidden">approx</span><span class="headerData">372</span><span class="text-xl"> ${t('hectares')}</span>`;
+    }
+
+    function applyStaticLanguage() {
+      document.title = t('documentTitle');
+      document.documentElement.lang = currentLanguage;
+      document.documentElement.dir = currentLanguage === 'ar' ? 'rtl' : 'ltr';
+      document.body.classList.toggle('lang-ar', currentLanguage === 'ar');
+      setText('timelineTabLabel', t('timeline'));
+      setText('plumesTabLabel', t('plumes'));
+      setText('counterTitle', t('toxicity'));
+      setText('lastUpdateLabel', t('lastUpdate'));
+      setText('strikesLabel', t('strikes'));
+      setText('landAreaLabel', t('landArea'));
+      setText('feltWedgesLabel', t('feltWedges'));
+      setText('desktopClickLabel', t('desktopClick'));
+      setText('mobileClickLabel', t('mobileClick'));
+      const footer = byId('footerNotice');
+      if (footer) footer.innerHTML = t('footer');
+      document.querySelectorAll('.loading-note').forEach(item => {
+        item.textContent = t('loadingData');
+      });
+      renderAreaCounter(byId('areaCounterValue')?.dataset.mode || 'hectares');
+      byId('langEn').className = currentLanguage === 'en'
+        ? 'transition-colors text-white underline'
+        : 'transition-colors text-gray-400 no-underline';
+      byId('langAr').className = currentLanguage === 'ar'
+        ? 'transition-colors text-white underline'
+        : 'transition-colors text-gray-400 no-underline';
+    }
+
+    function setLanguage(language, rerender = true) {
+      currentLanguage = language === 'ar' ? 'ar' : 'en';
+      plumeLanguage = currentLanguage;
+      applyStaticLanguage();
+
+      if (rerender && lastTimelineRaw) renderTimeline(lastTimelineRaw);
+      if (rerender && plumeItems.length) renderPlumes();
+
+      try {
+        const url = new URL(window.location.href);
+        if (currentLanguage === 'ar') url.searchParams.set('lang', 'ar');
+        else url.searchParams.delete('lang');
+        history.replaceState(null, '', url);
+      } catch (error) {
+        /* Local file URLs can reject history updates in some browsers. */
+      }
+    }
+
+    function dateRange(start, end) {
+      const dates = [];
+      const current = new Date(`${start}T00:00:00`);
+      const last = new Date(`${end}T00:00:00`);
+      while (current <= last) {
+        dates.push(current.toISOString().slice(0, 10));
+        current.setDate(current.getDate() + 1);
+      }
+      return dates;
+    }
+
+    function setActiveSection(section) {
+      const timelineActive = section === 'timeline';
+      timelineTab.classList.toggle('tabIsActive', timelineActive);
+      plumesTab.classList.toggle('tabIsActive', !timelineActive);
+      header.classList.toggle('header-is-plumes', !timelineActive);
+    }
+
+    const sectionObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) setActiveSection(entry.target.id);
+      });
+    }, { threshold: .4 });
+
+    sectionObserver.observe(byId('timeline'));
+    sectionObserver.observe(byId('plumes'));
+
+    setInterval(() => {
+      const areaCounter = byId('areaCounterValue');
+      const nextMode = areaCounter.dataset.mode === 'hectares' ? 'fields' : 'hectares';
+      areaCounter.classList.remove('fadeIn');
+      areaCounter.classList.add('fadeOut');
+      setTimeout(() => {
+        renderAreaCounter(nextMode);
+        areaCounter.classList.remove('fadeOut');
+        areaCounter.classList.add('fadeIn');
+      }, 600);
+    }, 8000);
+
+    function normalizeTimelineData(raw) {
+      const records = raw.map(item => ({
+        code: item.code,
+        date: String(item.date || '').slice(0, 10),
+        area: item.town || item.country || 'Unknown',
+        count: Number(item.shell_count || 0),
+        links: Array.isArray(item.links) ? item.links : [],
+        filename: Array.isArray(item.filename) ? item.filename : []
+      })).filter(item => item.date && item.area);
+
+      const totalsByArea = new Map();
+      records.forEach(item => totalsByArea.set(item.area, (totalsByArea.get(item.area) || 0) + item.count));
+      const areas = Array.from(totalsByArea.keys()).sort((a, b) => (totalsByArea.get(a) || 0) - (totalsByArea.get(b) || 0));
+      const days = dateRange('2023-10-07', '2024-11-30');
+      const grouped = new Map();
+
+      records.forEach(item => {
+        const key = `${item.date}|${item.area}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, { ...item, records: [item] });
+          return;
+        }
+        const existing = grouped.get(key);
+        existing.count += item.count;
+        existing.links.push(...item.links);
+        existing.filename.push(...item.filename);
+        existing.records.push(item);
+      });
+
+      return { records, grouped, areas, days };
+    }
+
+    function createSvg(width, height, className) {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', width);
+      svg.setAttribute('height', height);
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.setAttribute('class', className);
+      return svg;
+    }
+
+    function svgNode(tag, attrs = {}) {
+      const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+      return node;
+    }
+
+    function showTooltip(event, cell) {
+      tooltip.dir = currentLanguage === 'ar' ? 'rtl' : 'ltr';
+      const incidentLabel = cell.count === 1 ? t('incident') : t('incidents');
+      tooltip.innerHTML = `<strong>${escapeHtml(cell.date)}</strong><br>${escapeHtml(cell.area)}<br>${cell.count} ${incidentLabel}`;
+      tooltip.style.opacity = '.85';
+      moveTooltip(event);
+    }
+
+    function moveTooltip(event) {
+      tooltip.style.left = `${event.pageX + 10}px`;
+      tooltip.style.top = `${event.pageY - 30}px`;
+    }
+
+    function hideTooltip() {
+      tooltip.style.opacity = '0';
+    }
+
+    function renderTimeline(raw) {
+      const { grouped, areas, days } = normalizeTimelineData(raw);
+      const mobile = isMobile();
+      const containerHeight = Math.max(420, Math.floor(window.innerHeight * .64));
+      const margin = { top: 60, right: 170, bottom: 50, left: mobile ? 75 : 100 };
+      const availableHeight = containerHeight - margin.top - margin.bottom;
+      const cell = Math.max(6, Math.min(15, (availableHeight - 60) / areas.length));
+      const width = Math.ceil(days.length * cell);
+      const rowHeight = cell;
+      const plotHeight = Math.ceil(areas.length * rowHeight);
+      const svgWidth = width + margin.left + margin.right;
+      const svgHeight = plotHeight + margin.top + margin.bottom;
+      const maxCount = Math.max(1, ...Array.from(grouped.values()).map(item => item.count));
+
+      heatmap.innerHTML = `
+        <div class="heatmap-stage scroll-behavior-none">
+          <div class="heatmap-y-axis"></div>
+          <div class="heatmap-scroll"></div>
+        </div>
+      `;
+
+      const yAxis = heatmap.querySelector('.heatmap-y-axis');
+      const scroll = heatmap.querySelector('.heatmap-scroll');
+      const axisSvg = createSvg(margin.left + 8, svgHeight, 'axis-svg');
+      const mainSvg = createSvg(svgWidth, svgHeight, 'heatmap-svg');
+      yAxis.appendChild(axisSvg);
+      scroll.appendChild(mainSvg);
+
+      areas.forEach((area, index) => {
+        const y = margin.top + index * rowHeight + rowHeight * .68;
+        const label = svgNode('text', {
+          x: margin.left - 6,
+          y,
+          'font-size': Math.max(8, cell / 1.3),
+          'text-anchor': 'end'
+        });
+        label.textContent = area;
+        axisSvg.appendChild(label);
+      });
+
+      days.forEach((day, index) => {
+        const [year, month] = day.split('-');
+        const prevMonth = index > 0 ? days[index - 1].split('-')[1] : null;
+        if (month !== prevMonth) {
+          const x = margin.left + index * cell;
+          const label = svgNode('text', {
+            x,
+            y: margin.top + plotHeight + 28,
+            'font-size': Math.max(8, cell / 1.2),
+            'text-anchor': 'start'
+          });
+          label.textContent = `${MONTH_NAMES[currentLanguage][Number(month) - 1]}, ${year}`;
+          mainSvg.appendChild(label);
+
+          const tick = svgNode('line', {
+            x1: x,
+            x2: x,
+            y1: margin.top + plotHeight + 6,
+            y2: margin.top + plotHeight + 12,
+            stroke: '#ccc',
+            'stroke-width': '1'
+          });
+          mainSvg.appendChild(tick);
+        }
+      });
+
+      const lowStart = days.indexOf('2023-12-10');
+      const lowEnd = days.indexOf('2024-09-30');
+      if (lowStart >= 0 && lowEnd >= 0) {
+        const x1 = margin.left + lowStart * cell;
+        const x2 = margin.left + lowEnd * cell + cell - 30;
+        const y = margin.top - 12;
+        mainSvg.appendChild(svgNode('line', {
+          x1, x2, y1: y, y2: y, stroke: '#660000', 'stroke-width': '2'
+        }));
+        const label = svgNode('text', {
+          x: (x1 + x2) / 2 + 10,
+          y: y + 2,
+          'font-size': '12',
+          'text-anchor': 'middle'
+        });
+        label.textContent = t('lowIntensity');
+        mainSvg.appendChild(label);
+      }
+
+      EVENTS.forEach(event => {
+        const index = days.indexOf(event.date);
+        if (index < 0) return;
+        const x = margin.left + index * cell;
+        mainSvg.appendChild(svgNode('line', {
+          x1: x,
+          x2: x,
+          y1: margin.top,
+          y2: margin.top + plotHeight,
+          stroke: '#FF0000',
+          'stroke-width': '1.5'
+        }));
+        const eventLabel = event.label[currentLanguage];
+        if (eventLabel) {
+          const label = svgNode('text', {
+            x: x + event.offset,
+            y: margin.top - 10,
+            'font-size': '12',
+            'text-anchor': 'start'
+          });
+          label.textContent = eventLabel;
+          mainSvg.appendChild(label);
+        }
+      });
+
+      const cells = [];
+      areas.forEach((area, yIndex) => {
+        days.forEach((day, xIndex) => {
+          const key = `${day}|${area}`;
+          const datum = grouped.get(key);
+          const count = datum ? datum.count : 0;
+          const rect = svgNode('rect', {
+            x: margin.left + xIndex * cell,
+            y: margin.top + yIndex * rowHeight,
+            width: Math.max(1, cell * .95),
+            height: Math.max(1, rowHeight * .95),
+            fill: '#ffffff00',
+            class: 'timeline-cell',
+            'data-active': count > 0 ? 'true' : 'false'
+          });
+          mainSvg.appendChild(rect);
+
+          if (count > 0) {
+            const normalized = Math.max(.3, count / maxCount);
+            const fill = `rgba(255, ${Math.floor(85 + 10 * normalized)}, 66, ${Math.min(1, normalized)})`;
+            const cellData = { ...datum, fill };
+            cells.push({ rect, data: cellData, xIndex });
+            rect.addEventListener('mouseenter', event => showTooltip(event, cellData));
+            rect.addEventListener('mousemove', moveTooltip);
+            rect.addEventListener('mouseleave', hideTooltip);
+          }
+        });
+      });
+
+      cells.forEach(item => item.rect.setAttribute('fill', item.data.fill));
+
+      const desktopLabel = byId('desktopClickLabel');
+      const mobileLabel = byId('mobileClickLabel');
+      window.setTimeout(() => {
+        desktopLabel.classList.toggle('opacity-100', !mobile);
+        desktopLabel.classList.toggle('opacity-0', mobile);
+        mobileLabel.classList.toggle('opacity-100', mobile);
+        mobileLabel.classList.toggle('opacity-0', !mobile);
+      }, 6000);
+
+      let touchStart = 0;
+      let touchScroll = 0;
+      scroll.addEventListener('touchstart', event => {
+        touchStart = event.touches[0].clientX;
+        touchScroll = scroll.scrollLeft;
+      }, { passive: true });
+      scroll.addEventListener('touchmove', event => {
+        scroll.scrollLeft = touchScroll - (event.touches[0].clientX - touchStart);
+      }, { passive: true });
+
+      scroll.addEventListener('wheel', event => {
+        const delta = Math.abs(event.deltaY) > Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+        if (!delta) return;
+        const before = scroll.scrollLeft;
+        const maxScroll = scroll.scrollWidth - scroll.clientWidth;
+        scroll.scrollLeft = Math.max(0, Math.min(maxScroll, before + delta));
+        if (scroll.scrollLeft !== before) event.preventDefault();
+      }, { passive: false });
+
+      let pointerDown = false;
+      let pointerStart = 0;
+      let scrollStart = 0;
+      scroll.addEventListener('pointerdown', event => {
+        pointerDown = true;
+        pointerStart = event.clientX;
+        scrollStart = scroll.scrollLeft;
+        scroll.classList.add('is-dragging');
+        scroll.setPointerCapture(event.pointerId);
+      });
+      scroll.addEventListener('pointermove', event => {
+        if (!pointerDown) return;
+        scroll.scrollLeft = scrollStart - (event.clientX - pointerStart);
+        event.preventDefault();
+      });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(type => {
+        scroll.addEventListener(type, event => {
+          pointerDown = false;
+          scroll.classList.remove('is-dragging');
+          try { scroll.releasePointerCapture(event.pointerId); } catch (error) {}
+        });
+      });
+    }
+
+    async function loadTimeline() {
+      try {
+        const response = await fetch(TIMELINE_DATA);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        lastTimelineRaw = await response.json();
+        renderTimeline(lastTimelineRaw);
+      } catch (error) {
+        heatmap.innerHTML = `<div class="error-note">${t('errorLoading')} ${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    let plumeLanguage = currentLanguage;
+    let plumeItems = [];
+    let plumeVideoObserver = null;
+
+    function plumeTitle(item) {
+      if (plumeLanguage === 'ar') return item.name_ar;
+      if (item.name === 'White Phosphorus') return `${item.name} (WP)`;
+      if (item.name === 'Fighter Jets') return `${item.name} & UAVs`;
+      return item.name;
+    }
+
+    function renderPlumes() {
+      const list = byId('plumesList');
+      list.innerHTML = '';
+      plumeItems.forEach((item, index) => {
+        const title = plumeTitle(item);
+        const text = plumeLanguage === 'ar' ? item.text_ar : item.text;
+        const nameNoSpace = String(item.name || '').replace(/ /g, '');
+        const row = document.createElement('div');
+        row.className = 'plume-row grid grid-cols-1 gap-2 max-h-[300px] transition-all duration-700 ease-in-out transform opacity-100 translate-y-0';
+        row.style.transitionDelay = `${Math.min(index * 50, 500)}ms`;
+        row.innerHTML = `
+          <div class="dark-bg p-4 plume-card">
+            <div class="relative w-full pt-[100%] max-h-[300px]">
+              <div class="absolute inset-0 overflow-hidden">
+                <img src="${CLOUD_THUMB_ROOT}/${escapeHtml(nameNoSpace)}.jpg" alt="${escapeHtml(item.name)}" loading="lazy" class="absolute inset-0 w-full h-full object-cover">
+                <video class="plume-video absolute inset-0 w-full h-full object-cover" muted loop playsinline preload="none" data-video="${escapeHtml(item.video)}" style="opacity:0;transition:opacity .3s ease-in-out"></video>
+              </div>
+            </div>
+          </div>
+          <div class="dark-bg p-0 flex items-center max-h-[330px] plume-copy">
+            <div class="text-left plumes-description relative overflow-y-auto">
+              <div class="${plumeLanguage === 'ar' ? 'ar' : 'en'} opacity-100 fadeIn">
+                <h3 class="${plumeLanguage === 'ar' ? 'ar' : 'en'} mb-2 font-bold plume-name">${escapeHtml(title)}</h3>
+                <p class="${plumeLanguage === 'ar' ? 'ar' : 'en'}">${escapeHtml(text)}</p>
+              </div>
+            </div>
+          </div>
+          <div class="dark-bg px-4 py-8 flex items-center max-h-[330px] plume-media-grid">
+            <div class="grid grid-cols-5 grid-rows-1 gap-2 w-full h-full overflow-hidden"></div>
+          </div>
+        `;
+
+        row.__plumeItem = item;
+        list.appendChild(row);
+        renderPlumeMediaGrid(row.querySelector('.plume-media-grid'));
+      });
+
+      hydratePlumeVideos();
+    }
+
+    function renderPlumeMediaGrid(container) {
+      if (container.dataset.rendered === 'true') return;
+      const row = container.closest('.plume-row');
+      const item = row && row.__plumeItem;
+      const grid = container.querySelector('.grid');
+      if (!item || !grid) return;
+
+      item.filenames.forEach((file, mediaIndex) => {
+        const image = abs(file);
+        const link = item.links[mediaIndex] || item.links[0] || '#';
+        const holder = document.createElement('div');
+        holder.className = 'img-container w-full h-full relative cursor-pointer';
+        holder.innerHTML = `<img src="${escapeHtml(image)}" class="w-full h-full object-cover inset-0 cursor-pointer" loading="lazy" decoding="async" alt="" data-link="${escapeHtml(link)}">`;
+        holder.querySelector('img').addEventListener('click', () => openMediaOverlay(image, link));
+        grid.appendChild(holder);
+      });
+
+      container.dataset.rendered = 'true';
+    }
+
+    function hydratePlumeVideos() {
+      if (plumeVideoObserver) plumeVideoObserver.disconnect();
+      const videos = document.querySelectorAll('.plume-video');
+      plumeVideoObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const video = entry.target;
+          if (entry.isIntersecting) {
+            if (!video.querySelector('source')) {
+              const source = document.createElement('source');
+              source.src = video.dataset.video;
+              source.type = 'video/mp4';
+              video.appendChild(source);
+              video.load();
+            }
+            video.play().then(() => {
+              video.style.opacity = '1';
+            }).catch(() => {
+              video.style.opacity = '0';
+            });
+          } else {
+            video.pause();
+            video.currentTime = 0;
+            video.style.opacity = '0';
+          }
+        });
+      }, { root: null, rootMargin: '160px', threshold: .25 });
+
+      videos.forEach(video => plumeVideoObserver.observe(video));
+    }
+
+    function openMediaOverlay(image, link) {
+      const overlay = byId('media-overlay');
+      byId('overlay-content').innerHTML = `<img src="${escapeHtml(image)}" alt="">`;
+      byId('overlay-source').innerHTML = `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">${t('viewSource')}</a>`;
+      overlay.classList.remove('fade-out');
+      overlay.classList.add('fade-in');
+    }
+
+    byId('media-overlay').addEventListener('click', event => {
+      if (event.target.id !== 'media-overlay') return;
+      event.currentTarget.classList.remove('fade-in');
+      event.currentTarget.classList.add('fade-out');
+    });
+
+    byId('langEn').addEventListener('click', () => {
+      setLanguage('en');
+    });
+
+    byId('langAr').addEventListener('click', () => {
+      setLanguage('ar');
+    });
+
+    async function loadPlumes() {
+      const list = byId('plumesList');
+      try {
+        const response = await fetch(PLUME_DATA);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        plumeItems = await response.json();
+        renderPlumes();
+      } catch (error) {
+        list.innerHTML = `<div class="error-note">${t('errorLoading')} ${escapeHtml(error.message)}</div>`;
+      }
+    }
+
+    setLanguage(currentLanguage, false);
+    loadTimeline();
+    loadPlumes();
+
+    window.addEventListener('resize', () => {
+      window.clearTimeout(window.__timelineResizeTimer);
+      window.__timelineResizeTimer = window.setTimeout(() => {
+        if (lastTimelineRaw) renderTimeline(lastTimelineRaw);
+        else loadTimeline();
+      }, 250);
+    });
+  </script>
+</body>
+</html>
